@@ -1,1 +1,101 @@
+import cv2
+import numpy as np
+from filters import box_blur, gaussian_blur, sharpen, sobel_edges, canny_edges
 
+def nothing(x):
+    pass
+
+def main():
+    # Try different indices to find the correct one
+    cap = cv2.VideoCapture(1)  # or 2, 3, etc.
+    
+    if not cap.isOpened():
+        print("Error: Could not open webcam.")
+        return
+
+    filter_name = "original"
+    ksize = 5
+    sigma = 1
+    threshold1, threshold2 = 80, 150
+    save_idx = 0
+
+    # Create controls window with trackbars
+    cv2.namedWindow("Controls")
+    cv2.createTrackbar("Kernel Size", "Controls", ksize, 31, nothing)
+    cv2.createTrackbar("Sigma", "Controls", sigma, 50, nothing)
+    cv2.createTrackbar("Canny Th1", "Controls", threshold1, 255, nothing)
+    cv2.createTrackbar("Canny Th2", "Controls", threshold2, 255, nothing)
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        # Resize frame to 640x480
+        frame = cv2.resize(frame, (640, 480))
+
+        # Read current trackbar values
+        ksize = cv2.getTrackbarPos("Kernel Size", "Controls")
+        if ksize < 1:
+            ksize = 1
+        if ksize % 2 == 0:
+            ksize += 1
+
+        sigma = cv2.getTrackbarPos("Sigma", "Controls")
+        if sigma < 1:
+            sigma = 1
+
+        threshold1 = cv2.getTrackbarPos("Canny Th1", "Controls")
+        threshold2 = cv2.getTrackbarPos("Canny Th2", "Controls")
+
+        # Apply selected filter
+        if filter_name == "box":
+            filtered = box_blur(frame, ksize)
+        elif filter_name == "gaussian":
+            filtered = gaussian_blur(frame, ksize, sigma)
+        elif filter_name == "sharpen":
+            filtered = sharpen(frame)
+        elif filter_name == "sobel":
+            filtered = sobel_edges(frame)
+        elif filter_name == "canny":
+            filtered = canny_edges(frame, threshold1, threshold2)
+        else:
+            filtered = frame
+
+        # Ensure filtered image has 3 channels for stacking
+        if len(filtered.shape) == 2:
+            filtered_display = cv2.cvtColor(filtered, cv2.COLOR_GRAY2BGR)
+        else:
+            filtered_display = filtered
+
+        # Stack original and filtered side-by-side
+        combined = np.hstack((frame, filtered_display))
+        cv2.imshow("Original | Filtered", combined)
+
+        key = cv2.waitKey(1) & 0xFF
+
+        # Keyboard controls
+        if key == ord('q'):
+            break
+        elif key == ord('b'):
+            filter_name = "box"
+        elif key == ord('g'):
+            filter_name = "gaussian"
+        elif key == ord('s'):
+            filter_name = "sharpen"
+        elif key == ord('e'):
+            filter_name = "sobel"
+        elif key == ord('c'):
+            filter_name = "canny"
+        elif key == ord('o'):
+            filter_name = "original"
+        elif key == ord('p'):
+            filename = f"snapshot_{save_idx:03d}.png"
+            cv2.imwrite(filename, filtered)
+            save_idx += 1
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+if __name__ == "__main__":
+    main()
